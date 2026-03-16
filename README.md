@@ -1,114 +1,72 @@
-# Hand Track to MIDI CC
+# Hand Instrument — Computer Vision MIDI Controller
 
-This script uses live footage from a webcam to track the user's hand and converts the solved node positions into MIDI control signals (MIDI CC) for the purposes of creating and influencing audio effects.
+Play MIDI notes and control expression in FL Studio using your hands and a webcam. Built on top of [HandTrack_To_MIDI](https://github.com/frkatona/HandTrack_To_MIDI).
 
-It's made in Python and uses OpenCV for hand tracking through Google's `mediapipe` library.  The `mido` library is used for MIDI signal generation.  Connect to your preferred audio software using a virtual MIDI cable (e.g., LoopMIDI).
+## How It Works
 
-### **Figure 1:** Example Use (see the full [demonstration video](https://youtu.be/Xb88uwkwUaE))
+| Hand | What it controls |
+|------|-----------------|
+| **Right hand** | **Melody** — Wrist height picks the note (C pentatonic minor, C3-C6). Pinch thumb + index to play. Finger spread controls velocity. Slide while pinching for legato. |
+| **Left hand** | **Expression** — Wrist height sends pitch bend (-8191 to +8191). Index finger height sends mod wheel (CC1, 0-127). |
 
-![FL example](1_FL.png)
+## Setup
 
-Note that, while I use a paid version of FL Studio, it is the only software that appears in the video which is not free.  And even then, the free version of FL Studio is (to the best of my knowledge) useable with this script.  Either way,  Vital was the primary sound source and is available to use with the creation of a free account.
+### 1. Install LoopMIDI (virtual MIDI cable)
+- Download from [Tobias Erichsen's site](https://www.tobias-erichsen.de/software/loopmidi.html)
+- Open LoopMIDI, create a new port named **HandMIDI**
+- Leave LoopMIDI running in the background
 
-## Quick Start
+### 2. Configure FL Studio
+- Go to **Options > MIDI Settings**
+- Under **Input**, find **HandMIDI** and enable it
+- Set its port number (e.g., port 0)
+- Click the **Enable** button so FL receives from this port
 
-### 1. Prerequisites
-- **Python 3.9 - 3.12** (MediaPipe does not yet support 3.13)
-- **Virtual MIDI Cable**: [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) (Windows) or IAC Driver (macOS)
-- **Webcam**
-
-### 2. Installation
+### 3. Install Python dependencies
 ```bash
-# Clone the repo
-git clone https://github.com/frkatona/HandTrack_To_MIDI.git
-cd HandTrack_To_MIDI
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\\Scripts\\activate
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Download gesture model (required for gesture script)
-python download_model.py
 ```
+Requires Python 3.10-3.12 (MediaPipe does not yet support 3.13).
 
-#### OR: Using Docker (Most Predictable)
-If you have [Docker](https://www.docker.com/products/docker-desktop/) installed, you can run the app without installing Python or any libraries on your computer locally.
-
-**1. Build the image (Do this once):**
+### 4. Run
 ```bash
-docker build -t hand-track-midi .
+python hand_instrument.py
 ```
 
-**2. Run the container:**
-```bash
-# On Linux:
-docker run -it --rm --device /dev/video0 -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix hand-track-midi
+## Mapping Controls in FL Studio
 
-# On Windows/macOS:
-# Hardware passthrough (webcam/MIDI) is more complex in Docker on Windows. 
-# It is recommended to use the "Installation" steps above for the best experience.
+- **Notes** arrive on MIDI channel 1 — arm a channel/instrument to receive them
+- **CC1 (mod wheel)** and **pitch bend** can be linked to any knob:
+  1. Right-click any knob or slider in FL Studio
+  2. Click **Link to controller...**
+  3. Move your left hand to send a CC/bend value
+  4. FL auto-detects and maps it
+
+## Recording in FL Studio
+
+1. Select the channel/instrument you want to record into
+2. Click the **record button** (or press R)
+3. Enable **Notes & automation** in the recording filter
+4. Press play — perform with your hands
+5. Stop when done — your pattern now contains the MIDI data
+
+## Controls
+
+- **q** — quit cleanly (sends note_off, closes MIDI port)
+- Edit the `CONFIG` block at the top of `hand_instrument.py` to change scale, note range, pinch sensitivity, etc.
+
+## Config Options
+
+```python
+MIDI_PORT = "HandMIDI"          # must match your LoopMIDI port name
+SCALE = [0, 3, 5, 7, 10]       # pentatonic minor (semitone offsets)
+NOTE_MIN = 48                   # C3
+NOTE_MAX = 84                   # C6
+PINCH_THRESHOLD = 0.05          # lower = harder to trigger
+VELOCITY_MIN = 40
+VELOCITY_MAX = 127
 ```
 
-### 3. Usage
+## Original Project
 
-#### Option A: Continuous Tracking (Original)
-Maps wrist height (CC 1) and finger flexion (CC 2-6) to MIDI.
-```bash
-python HandTrackToMIDI.py --port "Your MIDI Port Name"
-```
-
-#### Option B: Gesture-Based (New)
-Maps discrete gestures (Fist, Victory, etc.) to CC 2-8 with a 2-second decay.
-```bash
-python HandTrackGesturesToMIDI.py --port "Your MIDI Port Name"
-```
-
-![AK Hand Gesturing](3_HandGesture.png)
-
-## Tips and Pitfalls
-
-The system is free and relatively easy to create and use, but here are a few difficulties that may arise:
-
-- **Python Version Pitfall:** mediapipe would not even install for me with Python 3.13 (current version as of writing).  I recommend a virtual environment with 3.12 if your installation fails
-
-- **LoopMIDI Port Naming Bug:** You will have to name your port in loopMIDI and use that same name in the code.  HOWEVER, for me, the port was created slightly different from how I typed it ("PythonMIDI 3" instead of "PythonMIDI").  I included a print statement to show the available ports, so be sure to check the terminal if the script fails before video capture initiates
-
-- **Linking Tip:** I found it easiest use the `Multilink to Controllers` button (hotkey `ctrl + j`) in FL studio and tweaking a parameter's dial/fader while my hand was on-screen to initiate the link.  FL will detect the port and channel for the active input, and so only the CC number at the top of the 'Remote control settings' pop-up (Figure 2A, "Ctrl") will need adjusted to the desired finger based on the script.  Default control values are as follows:
-
-``` py
-(1) wrist - vertical position (raised hand = higher value)
-(2) index - flexion (flexed finger = higher value)
-(3) middle - flexion (same)
-(4) ring - flexion (same)
-(5) pinky - flexion (same)
-(6) thumb - flexion (same)
-```
-
-### **Figure 2:** Remote Control Settings
-
-![Remote Control Settings](2_RemoteControlSettings.png)
-
-- **Mapping Tip:** the CC value maps can be tailored to the desired sensitivity and range of the parameter you are controlling (e.g., maybe a filter sweep sounds desireable only across a small fraction of the possible CC values and so the small range of motion of a finger's bend would present a frustratingly narrow range of desireable change).  The mapping can be altered in the script relatively easily, but I found that FL's `Mapping formula` field (Figure 2B) allowed for an intuitive and responsive testing ground for appropriate CC values on each parameter.  There are many presets with example operations available in the drop-down, but I often used something simple like `Input - 0.5`, leveraging the automatic output clamping as represented by the adjacent plot (which updates when you press `enter`).  This `Input - 0.5` example would be useful if, for instance, I wanted the parameter to remain unactivated (at 0) unless the finger was very flexed and I also didn't want the parameter to ever reach beyond half of its range.
-
-- **Smoothing Tip:** I found unsmoothed data to be acceptable in some contexts, but never preferable.  The script can be modified to include smoothing, but FL has a native smoothing function (Figure 2C) with a customizable time window that I found to be sufficient at around 15 ms (monitor the value in the `hint panel` at the top-left of the FL window while moving the slider).  Even with this additional delay, I felt the latency was noticeable, but far from prohibitive for CC control.
-
-- **Recommended Parameters Tip:** I found slow attack and release parameters ideal for this system, with a mix of generator-specific and global parameters to keep changes fresh.  The 'input' wetness of a global delay or reverb coupled with the pre-amp drive and low-pass cutoff of a generator allowed for some satisfying momentary accenting/shaping.  An LFO-paired global lowpass (e.g., Fruity Love Filter's 'triangle low-pass' preset) mapped to the breadth of the wrist's vertical range made for some satisfying 'fade-in,' 'fade-out' swell, like a dramatic orchestra conductor, and stereo effects from the phaser settings allowed its wetness parameter to function similarly as a global ambience control.  Countering with pre-amp drive on the finger flexion allowed the synth to cut through.  I had high hopes, but low success, with pitch bending, but the addition of some quantize + note glide control could be effective.
-
-## Future Directions
-
-I don't anticipate building on this much.  It's basically mediapipe and mido working as they were intended out of the box... not terribly creative on my part.  That said, I noted what I felt were some interesting possibilities for further development if ambition struck:
-
-- My **metrics for signals** are somewhat imprecise and taxing. "Finger closedness" is calculated based on fingertip-to-wrist distance which is both (1) vulnerable to the hand's forward angle with the camera and (2) requires mapping to bridge the remaining gap for even a fully folded finger.  A different node association could be used, but that would still not be robust to angling (though perhaps the wrist angle could be feel natural as another dimension of control).  And the wrist's vertical position requires it to be raised uncomfortably high throughout my video.  Perhaps a secondary gesture could trigger a lock on the wrist position's influence?
-
-- **Recognizable gestures** (e.g., peace, rock on) and **speed-based control** (e.g., wrist flick) are also within reason.  Though I couldn't be bothered to investigate, I imagine mediapipe or another library has a gesture recognition model that could be employed rather than working from scratch.  Similarly, if a whole-body model is as robust as the hand model, I imagine that could present some interesting (if exhausting) possibilities
-
-- **IRL Lighting Control** can easily [citation needed] be controlled through MIDI-out (i.e., sending MIDI from your computer to a connected device).  Perhaps the simplest case is triggering lighting on a MIDI controller with controllable LED pads like the Novation Launchkey 49 (e.g., MaddyGuthridge's [universal controller script](https://github.com/MaddyGuthridge/Universal-Controller-Script)).  With a MIDI-to-DMX interface (e.g., Entecc's [Open DMX USB interface](https://www.enttec.com/product/dmx-usb-interfaces/open-dmx-usb/)), this idea can scale into a complex, professional lighting setup (e.g., using FL's ZGE DMX controller as demonsted in [this video](https://youtu.be/rrQGiYoXmlo)).  I can envision clapping for blackouts, finger-pointing a spotlight to move corresponding direction, and a wrist flick for strobe effects with color, intensity, and speed mapped to horizontal resting position. The possibilities are endless, though obviously the cost of the hardware and the time spent implementing and troubleshooting are not.
-
-- **Sending non-control data** like note-on/off messages.  Certainly any percussive or otherwise transient-heavy triggered audio would suffer from the latency of this method, but I can imagine perhaps a slow-attack pad feeling satisfying.  Alternatively, a simple trigger can be made to trigger a more complex orchestration of sounds and effects using FL's `Patcher` and `Key Mapper` plugins to generate multi-instrument chords, arpeggios, bass, etc. (as demonstrated [here](https://youtu.be/1eidT2TAIt8) for my FRK AutoChords Patcher preset).  Though not shown in the video, I can imagine using FL's quantization to force the imprecise timing on the the grid for a more polished sound for recording or live performance.  Speaking of which, FL's native 'Performance Mode' fit the bill nicely, perhaps using the CC values in 'latch trigger' mode, switching binary state beyond a certain threshold with some kind of 'de-bounce' logic.
-
-### to-do
- - get working with resolume
- - containerize for mac
+The original [HandTrack_To_MIDI](https://github.com/frkatona/HandTrack_To_MIDI) by frkatona maps single-hand finger flexion to MIDI CC values. This version extends it with two-hand support, note playing via pinch gestures, pitch bend, and a visual HUD overlay.
