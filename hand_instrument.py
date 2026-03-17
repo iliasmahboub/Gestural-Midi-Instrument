@@ -38,6 +38,8 @@ PINCH_ON_THRESHOLD = 0.045
 PINCH_OFF_THRESHOLD = 0.065
 BEND_SMOOTHING = 0.35
 MOD_SMOOTHING = 0.25
+OCTAVE_SHIFT_MIN = -2
+OCTAVE_SHIFT_MAX = 2
 
 ROOT_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 SCALE_LIBRARY = [
@@ -82,6 +84,23 @@ HAND_CONNECTIONS = [
 ]
 
 NOTE_NAMES = ROOT_NAMES
+FAMILY_PALETTES = {
+    "Bright": {"accent": (70, 240, 255), "text": (180, 255, 255), "panel": (28, 48, 52), "right": (110, 220, 255), "right_conn": (70, 190, 240), "left": (110, 150, 255), "left_conn": (80, 120, 220)},
+    "Blues": {"accent": (255, 180, 70), "text": (255, 225, 170), "panel": (48, 34, 22), "right": (255, 170, 90), "right_conn": (220, 130, 60), "left": (180, 120, 255), "left_conn": (130, 80, 220)},
+    "Open": {"accent": (110, 255, 185), "text": (195, 255, 220), "panel": (20, 42, 30), "right": (120, 255, 190), "right_conn": (70, 220, 150), "left": (120, 180, 255), "left_conn": (70, 130, 220)},
+    "Jazz": {"accent": (255, 120, 170), "text": (255, 210, 225), "panel": (48, 22, 34), "right": (255, 135, 175), "right_conn": (225, 85, 145), "left": (155, 140, 255), "left_conn": (110, 95, 220)},
+    "Loose": {"accent": (90, 225, 255), "text": (190, 235, 255), "panel": (20, 38, 52), "right": (95, 220, 255), "right_conn": (60, 175, 225), "left": (125, 150, 255), "left_conn": (85, 110, 220)},
+    "Luminous": {"accent": (120, 255, 230), "text": (210, 255, 242), "panel": (18, 40, 40), "right": (120, 255, 230), "right_conn": (80, 210, 190), "left": (120, 195, 255), "left_conn": (80, 150, 220)},
+    "Aeolian": {"accent": (110, 210, 255), "text": (180, 230, 255), "panel": (18, 28, 46), "right": (110, 210, 255), "right_conn": (70, 165, 220), "left": (110, 120, 255), "left_conn": (70, 85, 220)},
+    "Dramatic": {"accent": (90, 150, 255), "text": (185, 205, 255), "panel": (18, 24, 54), "right": (100, 160, 255), "right_conn": (65, 110, 225), "left": (155, 100, 255), "left_conn": (115, 70, 220)},
+    "Fluid": {"accent": (120, 255, 200), "text": (205, 255, 230), "panel": (18, 42, 42), "right": (120, 250, 210), "right_conn": (80, 205, 170), "left": (110, 165, 255), "left_conn": (75, 125, 220)},
+    "Soulful": {"accent": (255, 185, 90), "text": (255, 230, 180), "panel": (45, 30, 26), "right": (255, 175, 95), "right_conn": (220, 130, 65), "left": (150, 135, 255), "left_conn": (110, 100, 220)},
+    "Dark": {"accent": (80, 120, 255), "text": (175, 190, 255), "panel": (14, 18, 42), "right": (90, 130, 255), "right_conn": (55, 90, 220), "left": (145, 90, 255), "left_conn": (100, 60, 220)},
+    "Tense": {"accent": (105, 95, 255), "text": (190, 185, 255), "panel": (24, 18, 52), "right": (115, 105, 255), "right_conn": (80, 75, 220), "left": (205, 90, 210), "left_conn": (160, 60, 170)},
+    "Cinematic": {"accent": (120, 220, 255), "text": (205, 240, 255), "panel": (18, 30, 58), "right": (125, 220, 255), "right_conn": (85, 170, 225), "left": (175, 120, 255), "left_conn": (130, 85, 220)},
+    "Arabic": {"accent": (60, 210, 255), "text": (185, 240, 255), "panel": (12, 34, 50), "right": (80, 225, 255), "right_conn": (45, 180, 225), "left": (255, 125, 120), "left_conn": (220, 85, 80)},
+    "Floating": {"accent": (150, 255, 210), "text": (225, 255, 235), "panel": (20, 40, 34), "right": (150, 255, 210), "right_conn": (110, 210, 170), "left": (150, 210, 255), "left_conn": (110, 165, 220)},
+}
 
 
 def clamp(value, lo, hi):
@@ -97,6 +116,17 @@ def current_scale_label():
     return f"{ROOT_NAMES[current_root_index]} {scale['name']}"
 
 
+def current_palette():
+    family = SCALE_LIBRARY[current_scale_index]["family"]
+    return FAMILY_PALETTES.get(family, FAMILY_PALETTES["Aeolian"])
+
+
+def current_note_range():
+    lo = clamp(NOTE_MIN + octave_shift * 12, 0, 127)
+    hi = clamp(NOTE_MAX + octave_shift * 12, 0, 127)
+    return min(lo, hi), max(lo, hi)
+
+
 def build_scale_notes(root_index, intervals, lo, hi):
     notes = []
     for midi_note in range(lo, hi + 1):
@@ -107,11 +137,12 @@ def build_scale_notes(root_index, intervals, lo, hi):
 
 def refresh_scale_notes():
     global scale_notes
+    lo, hi = current_note_range()
     scale_notes = build_scale_notes(
         current_root_index,
         SCALE_LIBRARY[current_scale_index]["intervals"],
-        NOTE_MIN,
-        NOTE_MAX,
+        lo,
+        hi,
     )
 
 
@@ -124,6 +155,12 @@ def cycle_scale(direction):
 def cycle_root(direction):
     global current_root_index
     current_root_index = (current_root_index + direction) % len(ROOT_NAMES)
+    refresh_scale_notes()
+
+
+def change_octave(direction):
+    global octave_shift
+    octave_shift = clamp(octave_shift + direction, OCTAVE_SHIFT_MIN, OCTAVE_SHIFT_MAX)
     refresh_scale_notes()
 
 
@@ -181,20 +218,30 @@ def draw_hand_landmarks(frame, landmarks, color, conn_color):
         cv2.circle(frame, pt, 4, (255, 255, 255), 1)
 
 
+def draw_mood_wash(frame):
+    palette = current_palette()
+    h, w = frame.shape[:2]
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (0, 0), (w, h), palette["panel"], -1)
+    cv2.addWeighted(overlay, 0.12, frame, 0.88, 0, frame)
+    cv2.circle(frame, (w // 2, h // 2), int(min(w, h) * 0.42), palette["accent"], 2)
+
+
 def draw_pitch_bar(frame, y_norm):
     h, w = frame.shape[:2]
+    palette = current_palette()
     bar_x = w - 90
     bar_w = 22
     bar_top = 78
     bar_bot = h - 70
 
-    cv2.rectangle(frame, (bar_x, bar_top), (bar_x + bar_w, bar_bot), (40, 40, 40), -1)
-    cv2.rectangle(frame, (bar_x, bar_top), (bar_x + bar_w, bar_bot), (145, 145, 145), 1)
+    cv2.rectangle(frame, (bar_x, bar_top), (bar_x + bar_w, bar_bot), palette["panel"], -1)
+    cv2.rectangle(frame, (bar_x, bar_top), (bar_x + bar_w, bar_bot), palette["text"], 1)
 
     tick_step = 1 if len(scale_notes) <= 16 else max(1, len(scale_notes) // 12)
     for i, note in enumerate(scale_notes):
         tick_y = int(np.interp(i, [0, len(scale_notes) - 1], [bar_bot, bar_top]))
-        tick_color = (95, 95, 95)
+        tick_color = tuple(max(40, int(channel * 0.45)) for channel in palette["text"])
         cv2.line(frame, (bar_x - 6, tick_y), (bar_x, tick_y), tick_color, 1)
         if i % tick_step == 0:
             cv2.putText(
@@ -203,20 +250,20 @@ def draw_pitch_bar(frame, y_norm):
                 (bar_x - 66, tick_y + 4),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.34,
-                (170, 170, 170),
+                palette["text"],
                 1,
                 cv2.LINE_AA,
             )
 
     pos_y = int(np.interp(y_norm, [0.0, 1.0], [bar_top, bar_bot]))
-    cv2.rectangle(frame, (bar_x - 2, pos_y - 5), (bar_x + bar_w + 2, pos_y + 5), (0, 210, 255), -1)
+    cv2.rectangle(frame, (bar_x - 2, pos_y - 5), (bar_x + bar_w + 2, pos_y + 5), palette["accent"], -1)
     cv2.putText(
         frame,
         "PITCH MAP",
         (bar_x - 34, bar_top - 16),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.42,
-        (150, 150, 150),
+        palette["text"],
         1,
         cv2.LINE_AA,
     )
@@ -224,9 +271,11 @@ def draw_pitch_bar(frame, y_norm):
 
 def draw_hud(frame):
     scale = SCALE_LIBRARY[current_scale_index]
+    palette = current_palette()
     lines = [
         f"SCALE:   {current_scale_label()}",
         f"COLOR:   {scale['family']}",
+        f"OCTAVE:  {octave_shift:+d}",
         f"READY:   {hud_ready_note}",
         f"PLAYING: {hud_playing_note}",
         f"VEL:     {hud_velocity}",
@@ -241,7 +290,7 @@ def draw_hud(frame):
             (16, y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.58,
-            (0, 255, 200),
+            palette["accent"],
             1,
             cv2.LINE_AA,
         )
@@ -250,24 +299,26 @@ def draw_hud(frame):
 
 def draw_pinch_indicator(frame, wrist_lm, pinching):
     h, w = frame.shape[:2]
+    palette = current_palette()
     cx = int(wrist_lm.x * w) + 34
     cy = int(wrist_lm.y * h) - 34
     if pinching:
-        cv2.circle(frame, (cx, cy), 22, (0, 120, 0), 2)
-    color = (0, 255, 110) if pinching else (120, 120, 120)
+        cv2.circle(frame, (cx, cy), 22, palette["accent"], 2)
+    color = palette["accent"] if pinching else (120, 120, 120)
     cv2.circle(frame, (cx, cy), 12, color, -1)
     cv2.circle(frame, (cx, cy), 12, (220, 220, 220), 1)
 
 
 def draw_control_hints(frame):
-    text = "[ and ] scale   , and . root   s picker   q quit"
+    palette = current_palette()
+    text = "[ ] scale   , . root   - = octave   s picker   q quit"
     cv2.putText(
         frame,
         text,
         (16, frame.shape[0] - 18),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.5,
-        (185, 185, 185),
+        palette["text"],
         1,
         cv2.LINE_AA,
     )
@@ -278,6 +329,7 @@ def draw_scale_picker(frame):
         return
 
     h, w = frame.shape[:2]
+    palette = current_palette()
     panel_w = 460
     panel_h = 390
     x0 = (w - panel_w) // 2
@@ -286,28 +338,28 @@ def draw_scale_picker(frame):
     y1 = y0 + panel_h
 
     overlay = frame.copy()
-    cv2.rectangle(overlay, (x0, y0), (x1, y1), (12, 18, 22), -1)
+    cv2.rectangle(overlay, (x0, y0), (x1, y1), palette["panel"], -1)
     cv2.addWeighted(overlay, 0.82, frame, 0.18, 0, frame)
-    cv2.rectangle(frame, (x0, y0), (x1, y1), (0, 220, 180), 2)
+    cv2.rectangle(frame, (x0, y0), (x1, y1), palette["accent"], 2)
 
-    cv2.putText(frame, "Scale Picker", (x0 + 20, y0 + 34), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 255, 215), 2, cv2.LINE_AA)
+    cv2.putText(frame, "Scale Picker", (x0 + 20, y0 + 34), cv2.FONT_HERSHEY_SIMPLEX, 0.85, palette["accent"], 2, cv2.LINE_AA)
     cv2.putText(
         frame,
-        f"Root: {ROOT_NAMES[current_root_index]}    Family: {SCALE_LIBRARY[current_scale_index]['family']}",
+        f"Root: {ROOT_NAMES[current_root_index]}    Family: {SCALE_LIBRARY[current_scale_index]['family']}    Octave: {octave_shift:+d}",
         (x0 + 20, y0 + 66),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.52,
-        (215, 215, 215),
+        palette["text"],
         1,
         cv2.LINE_AA,
     )
     cv2.putText(
         frame,
-        "Arrow up/down chooses scale, left/right changes root, s closes",
+        "Arrow up/down chooses scale, left/right changes root, - and = shift octave, s closes",
         (x0 + 20, y1 - 24),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.47,
-        (170, 170, 170),
+        palette["text"],
         1,
         cv2.LINE_AA,
     )
@@ -329,7 +381,7 @@ def draw_scale_picker(frame):
                 (x0 + 30, line_y),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.42,
-                (110, 210, 180),
+                palette["accent"],
                 1,
                 cv2.LINE_AA,
             )
@@ -337,9 +389,9 @@ def draw_scale_picker(frame):
 
         is_selected = idx == current_scale_index
         if is_selected:
-            cv2.rectangle(frame, (x0 + 18, line_y - 18), (x1 - 18, line_y + 10), (18, 72, 66), -1)
+            cv2.rectangle(frame, (x0 + 18, line_y - 18), (x1 - 18, line_y + 10), tuple(max(20, int(channel * 0.35)) for channel in palette["accent"]), -1)
         label = f"{ROOT_NAMES[current_root_index]} {scale['name']}"
-        color = (255, 255, 255) if is_selected else (188, 188, 188)
+        color = (255, 255, 255) if is_selected else palette["text"]
         cv2.putText(frame, label, (x0 + 30, line_y), cv2.FONT_HERSHEY_SIMPLEX, 0.62, color, 1, cv2.LINE_AA)
         line_y += 28
 
@@ -353,6 +405,10 @@ def handle_picker_key(key):
         cycle_root(-1)
     elif key == 2555904:
         cycle_root(1)
+    elif key in (ord("-"), ord("_")):
+        change_octave(-1)
+    elif key in (ord("="), ord("+")):
+        change_octave(1)
 
 
 available = mido.get_output_names()
@@ -391,6 +447,7 @@ detector = vision.HandLandmarker.create_from_options(options)
 
 current_scale_index = DEFAULT_SCALE_INDEX
 current_root_index = DEFAULT_ROOT_INDEX
+octave_shift = 0
 scale_notes = []
 refresh_scale_notes()
 
@@ -429,6 +486,7 @@ while True:
 
     frame_timestamp += 33
     result = detector.detect_for_video(mp_image, frame_timestamp)
+    draw_mood_wash(frame)
 
     right_found = False
     left_found = False
@@ -445,7 +503,8 @@ while True:
 
             if is_right:
                 right_found = True
-                draw_hand_landmarks(frame, landmarks, color=(255, 150, 50), conn_color=(255, 100, 30))
+                palette = current_palette()
+                draw_hand_landmarks(frame, landmarks, color=palette["right"], conn_color=palette["right_conn"])
 
                 note = y_to_scale_note(wrist.y)
                 hud_ready_note = midi_to_name(note)
@@ -480,7 +539,8 @@ while True:
 
             if is_left:
                 left_found = True
-                draw_hand_landmarks(frame, landmarks, color=(50, 50, 255), conn_color=(30, 30, 200))
+                palette = current_palette()
+                draw_hand_landmarks(frame, landmarks, color=palette["left"], conn_color=palette["left_conn"])
 
                 target_bend = int(np.interp(wrist.y, [0.0, 1.0], [8191, -8191]))
                 smoothed_bend = smooth_value(smoothed_bend, target_bend, BEND_SMOOTHING)
@@ -538,6 +598,10 @@ while True:
         cycle_root(-1)
     elif key == ord("."):
         cycle_root(1)
+    elif key in (ord("-"), ord("_")):
+        change_octave(-1)
+    elif key in (ord("="), ord("+")):
+        change_octave(1)
     elif show_scale_picker:
         handle_picker_key(key)
 

@@ -40,7 +40,9 @@ The note lane is quantized to a chosen scale, so you can stay musical while stil
   - Whole Tone
 - Pinch triggering now uses hysteresis, which makes it feel less twitchy and more playable.
 - Pitch bend and mod wheel are smoothed a bit, so expression feels more sung than jittered.
-- The HUD now shows the current scale, root, note map, and a scale picker overlay grouped by musical family.
+- You can shift the whole note range up or down by octave while you play.
+- The whole visual mood now changes with the active scale family, so bright modes feel different from dark or Arabic ones before you even hear the next phrase.
+- The HUD now shows the current scale, root, octave, note map, and a scale picker overlay grouped by musical family.
 
 Note on the Arabic entries: these are **12-tone equal temperament approximations**, not strict maqam intonation. They are useful, expressive, and fun, but they are still living inside standard MIDI note spacing.
 
@@ -50,6 +52,7 @@ Note on the Arabic entries: these are **12-tone equal temperament approximations
 - `s` opens or closes the scale picker
 - `[` and `]` cycle scales
 - `,` and `.` cycle roots
+- `-` and `=` shift octave down or up
 - Arrow keys also work inside the scale picker
 
 ## Setup
@@ -108,6 +111,7 @@ Most of the personality lives near the top of [`hand_instrument.py`](/C:/Users/i
 - `VELOCITY_MIN` and `VELOCITY_MAX` shape the dynamic floor and ceiling
 - `PINCH_ON_THRESHOLD` and `PINCH_OFF_THRESHOLD` change note trigger feel
 - `BEND_SMOOTHING` and `MOD_SMOOTHING` change expression glide
+- `OCTAVE_SHIFT_MIN` and `OCTAVE_SHIFT_MAX` define the live transpose bounds
 - `SCALE_LIBRARY` is where the available modes live
 
 ## Why I Like It
